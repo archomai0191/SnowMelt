@@ -1,55 +1,59 @@
+#Модуль, содержащий описание интерфейса приложения
+
 import tkinter as tk, FormDataClass as fdc, math, datetime as dt, SnowMeltLogic as sml
 from tkinter import filedialog as fd
 from tkinter.ttk import Checkbutton
 from tkinter.messagebox import showinfo
 
-def heightClicked():
+def heightClicked(): #обработчик для checkbox-a "Высота"
     forestCoefEntry.configure(state = "normal" if heightChk_state.get() else "disabled")
     fieldCoefEntry.configure(state = "normal" if heightChk_state.get() else "disabled")
 
-def expClicked():
+def expClicked(): #обработчик для checkbox-a "Экспозиция"
     southEntry.configure(state = "normal" if expChk_state.get() else "disabled")
     westEntry.configure(state = "normal" if expChk_state.get() else "disabled")
     eastEntry.configure(state = "normal" if expChk_state.get() else "disabled")
     northEntry.configure(state = "normal" if expChk_state.get() else "disabled")
     plainEntry.configure(state = "normal" if expChk_state.get() else "disabled")
 
-def forestClicked():
+def forestClicked(): #обработчик для checkbox-a "Изменить водный эквивалент снега для леса"
     snowForestDefEntry.set("2")
     snowForestCoefEntry.configure(state = "normal" if snowForestChk_state.get() else "disabled")
 
-def fieldClicked():
+def fieldClicked(): #обработчик для checkbox-a "Изменить водный эквивалент снега для поля"
     snowFieldDefEntry.set("5")
     snowFieldCoefEntry.configure(state = "normal" if snowFieldChk_state.get() else "disabled")
 
-def pickFile():
+def pickFile(): #обработчик для кнопки "Выбрать файл"
     filetypes = [('Файлы DBF', '*.dbf')]
     filename = fd.askopenfilename(title = "Выберите файл", initialdir = "/", filetypes = filetypes)
     pathLbl.configure(text = filename if filename != "" else "Файл с данными о точках не выбран")
 
-def parseEntry(elem, message):
+def parseEntry(elem, message): #преобразование строки в вещественное число
     try:
-        res = float(elem.get().replace(",", "."))
+        res = float(elem.get().replace(",", ".")) #замена запятой на точку и преобразование к вещественному числу
         return res
-    except:
+    except: #преобразовать не удалось => было введено не число, сообщаем об этом
         showinfo(title = "Ошибка в параметрах", message = message)
         return float('NaN')
 
-def parseDt(elem, isstart, message):
+def parseDt(elem, isstart, message): #преобразование строки в datetime
     try:
-        res = dt.datetime.strptime(elem.get(), "%d.%m.%Y")
+        res = dt.datetime.strptime(elem.get(), "%d.%m.%Y") #попытка чтения в формате дд.мм.гггг
         return res
     except:
         try:
-            res = dt.datetime.strptime(elem.get(), "%Y")
+            res = dt.datetime.strptime(elem.get(), "%Y") #попытка чтения в формате гггг
+            #установка даты 1 января, если читаем начало промежутка, иначе - 31 декабря
             if isstart: res = res.replace(month = 1, day = 1)
             else: res = res.replace(month = 12, day = 31)
             return res
-        except:
+        except: #была введена не дата - сообщаем об этом
             showinfo(title = "Ошибка в параметрах", message = message)
             return None
 
-def run():
+def run(): #обработчик для кнопки "Расчет"
+    #чтение и проверка временного промежутка
     startTime = parseDt(startEntry, True, "Неверный формат для начала временного промежутка")
     endTime = parseDt(endEntry, False, "Неверный формат для конца временного промежутка")
     if startTime is None or endTime is None: return
@@ -58,26 +62,27 @@ def run():
                  "Начало временного промежутка не может наступить позже, чем его конец")
         return
 
+    #чтение и проверка порога высоты и коэффициентов водного эквивалента снега
     heightTh = parseEntry(heightEntry, "В качестве порога высоты введено не число")
     wEqField = parseEntry(snowFieldDefEntry, "В качестве водного эквивалента снега для поля введено не число")
     wEqForest = parseEntry(snowForestDefEntry, "В качестве водного эквивалента снега для леса введено не число")
     if math.isnan(heightTh) or math.isnan(wEqField) or math.isnan(wEqForest): return
 
-    if not heightChk_state.get():
+    if not heightChk_state.get(): #если высота не учитывается, высотные коэффициенты имеют значения по умолчанию
         forestCoef = 0
         fieldCoef = 0
-    else:
+    else: #иначе - проверка этих коэффициентов
         forestCoef = parseEntry(forestCoefEntry, "В качестве высотного коэффициента для леса введено не число")
         fieldCoef = parseEntry(fieldCoefEntry, "В качестве высотного коэффициента для поля введено не число")
         if math.isnan(forestCoef) or math.isnan(fieldCoef): return
     
-    if not expChk_state.get():
+    if not expChk_state.get(): #если экспозиция не учитывается, экспозиционные коэффициенты имеют значения по умолчанию
         sCoef = 0
         nCoef = 0
         wCoef = 0
         eCoef =  0
         pCoef = 0
-    else:
+    else: #иначе - проверка этих коэффициентов
         sCoef = parseEntry(southEntry, "В качестве экспозиционного коэффициента для юга введено не число")
         nCoef = parseEntry(northEntry, "В качестве экспозиционного коэффициента для севера введено не число")
         wCoef = parseEntry(westEntry, "В качестве экспозиционного коэффициента для запада введено не число")
@@ -85,14 +90,15 @@ def run():
         pCoef = parseEntry(plainEntry, "В качестве экспозиционного коэффициента для равнины введено не число")
         if math.isnan(sCoef) or math.isnan(nCoef) or math.isnan(wCoef) or math.isnan(eCoef) or math.isnan(pCoef): return
 
-    data = fdc.FormData(pathLbl.cget("text"), startTime, endTime, heightTh, heightChk_state.get(), expChk_state.get(), wEqField,
-                        wEqForest, forestCoef, fieldCoef, sCoef, nCoef, wCoef, eCoef, pCoef)
+    #запуск расчетов
+    data = fdc.FormData(pathLbl.cget("text"), startTime, endTime, heightTh, heightChk_state.get(), expChk_state.get(),
+                       wEqField, wEqForest, forestCoef, fieldCoef, sCoef, nCoef, wCoef, eCoef, pCoef)
     sml.run(data)
 
-form = tk.Tk()
+form = tk.Tk() #создание окна
 #параметры окна
 form.title("Расчет снеготаяния")
-form.minsize(400, 400) #оставить, но подкорректировать цифры
+form.minsize(400, 400)
 form.resizable(False, False)
 
 #временной промежуток, для которого ведутся расчеты
@@ -105,7 +111,7 @@ endLbl.grid(column = 2, row = 0)
 endEntry = tk.Entry(form)
 endEntry.grid(column = 3, row = 0, padx = 10)
 
-# порог высоты
+#порог высоты
 heightLbl = tk.Label(form, text = "Порог высоты")
 heightLbl.grid(column = 0, row = 1, pady = 10, sticky = "W")
 heightEntry = tk.Entry(form, width = 10)
@@ -181,4 +187,5 @@ fileBtn.grid(column = 0, row = 13, padx = 20, pady = 10)
 runBtn = tk.Button(form, text = "Расчет", width = 20, command = run)
 runBtn.grid(column = 1, row = 13)
 
+#отображение окна и запуск приложения
 form.mainloop()
