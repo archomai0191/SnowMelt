@@ -1,4 +1,4 @@
-import tkinter as tk
+import tkinter as tk, FormDataClass as fdc, math, datetime as dt, SnowMeltLogic as sml
 from tkinter import filedialog as fd
 from tkinter.ttk import Checkbutton
 from tkinter.messagebox import showinfo
@@ -27,8 +27,67 @@ def pickFile():
     filename = fd.askopenfilename(title = "Выберите файл", initialdir = "/", filetypes = filetypes)
     pathLbl.configure(text = filename if filename != "" else "Файл с данными о точках не выбран")
 
+def parseEntry(elem, message):
+    try:
+        res = float(elem.get().replace(",", "."))
+        return res
+    except:
+        showinfo(title = "Ошибка в параметрах", message = message)
+        return float('NaN')
+
+def parseDt(elem, isstart, message):
+    try:
+        res = dt.datetime.strptime(elem.get(), "%d.%m.%Y")
+        return res
+    except:
+        try:
+            res = dt.datetime.strptime(elem.get(), "%Y")
+            if isstart: res = res.replace(month = 1, day = 1)
+            else: res = res.replace(month = 12, day = 31)
+            return res
+        except:
+            showinfo(title = "Ошибка в параметрах", message = message)
+            return None
+
 def run():
-    showinfo(title = "Москва метро Люблино работаем", message = "Этот функционал еще не реализован :(")
+    startTime = parseDt(startEntry, True, "Неверный формат для начала временного промежутка")
+    endTime = parseDt(endEntry, False, "Неверный формат для конца временного промежутка")
+    if startTime is None or endTime is None: return
+    if startTime > endTime:
+        showinfo(title = "Ошибка в параметрах", message = 
+                 "Начало временного промежутка не может наступить позже, чем его конец")
+        return
+
+    heightTh = parseEntry(heightEntry, "В качестве порога высоты введено не число")
+    wEqField = parseEntry(snowFieldDefEntry, "В качестве водного эквивалента снега для поля введено не число")
+    wEqForest = parseEntry(snowForestDefEntry, "В качестве водного эквивалента снега для леса введено не число")
+    if math.isnan(heightTh) or math.isnan(wEqField) or math.isnan(wEqForest): return
+
+    if not heightChk_state.get():
+        forestCoef = 0
+        fieldCoef = 0
+    else:
+        forestCoef = parseEntry(forestCoefEntry, "В качестве высотного коэффициента для леса введено не число")
+        fieldCoef = parseEntry(fieldCoefEntry, "В качестве высотного коэффициента для поля введено не число")
+        if math.isnan(forestCoef) or math.isnan(fieldCoef): return
+    
+    if not expChk_state.get():
+        sCoef = 0
+        nCoef = 0
+        wCoef = 0
+        eCoef =  0
+        pCoef = 0
+    else:
+        sCoef = parseEntry(southEntry, "В качестве экспозиционного коэффициента для юга введено не число")
+        nCoef = parseEntry(northEntry, "В качестве экспозиционного коэффициента для севера введено не число")
+        wCoef = parseEntry(westEntry, "В качестве экспозиционного коэффициента для запада введено не число")
+        eCoef = parseEntry(eastEntry, "В качестве экспозиционного коэффициента для востока введено не число")
+        pCoef = parseEntry(plainEntry, "В качестве экспозиционного коэффициента для равнины введено не число")
+        if math.isnan(sCoef) or math.isnan(nCoef) or math.isnan(wCoef) or math.isnan(eCoef) or math.isnan(pCoef): return
+
+    data = fdc.FormData(pathLbl.cget("text"), startTime, endTime, heightTh, heightChk_state.get(), expChk_state.get(), wEqField,
+                        wEqForest, forestCoef, fieldCoef, sCoef, nCoef, wCoef, eCoef, pCoef)
+    sml.run(data)
 
 form = tk.Tk()
 #параметры окна
